@@ -1,94 +1,115 @@
-﻿using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using Il2CppRUMBLE.MoveSystem;
+﻿using Il2CppSteamworks;
 using MelonLoader;
-using RumbleModdingAPI;
-using Il2CppSteamworks;
-using static UnityEngine.Rendering.ProbeReferenceVolume;
-using System.Text.RegularExpressions;
-
-[assembly: MelonInfo(typeof(SteamTimelineIntegration.Core), "SteamTimelineIntegration", "1.0.0", "Dazbii", null)]
-[assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
+using RumbleModUI;
+using RumbleModdingAPI.RMAPI;
+using Il2CppRUMBLE.Players;
 
 namespace SteamTimelineIntegration
 {
+    public static class BuildInfo
+    {
+        public const string ModName = "SteamTimelineIntegration";
+        public const string ModVersion = "1.0.0";
+        public const string Description = "Rumble mod to enable integrations with the steam timeline ";
+        public const string Author = "Dazbii";
+        public const string Company = "";
+    }
+
+    enum Gamemode
+    {
+        Playing = ETimelineGameMode.k_ETimelineGameMode_Playing,
+        Park = ETimelineGameMode.k_ETimelineGameMode_Staging,
+        Gym = ETimelineGameMode.k_ETimelineGameMode_Menus,
+        BetweenMatches = ETimelineGameMode.k_ETimelineGameMode_LoadingScreen
+    }
+
     public class Core : MelonMod
     {
+        Mod Mod = new Mod();
+        private ModSetting<bool> incomingDamage;
+        private ModSetting<bool> outgoingDamage;
+
         private string opponentName;
-        private Il2CppRUMBLE.Players.PlayerData player;
-        //private int previousPlayerHealth;
-        private Il2CppRUMBLE.Players.PlayerData opponent;
-        //private int previousOpponentHealth;
+        private PlayerData player;
+        private PlayerData opponent;
         private int clientRoundWins;
+
+        private string previousOpponentName;
+
+        private int cumulativeWins;
+        private int cumulativeClientWins;
+        private int cumulativeLosses;
+        private int cumulativeHostLosses;
 
         private TimelineEventHandle_t roundEvent;
 
-        public override void OnInitializeMelon()
+        public override void OnLateInitializeMelon()
         {
-            base.OnInitializeMelon();
+            base.OnLateInitializeMelon();
 
-            Calls.onRoundStarted += RoundStarted;
-            Calls.onRoundEnded += RoundEnded;
+            UI.instance.UI_Initialized += OnUIInit;
 
-            Calls.onMatchStarted += MatchStarted;
-            Calls.onMatchEnded += MatchEnded;
+            Actions.onRoundStarted += RoundStarted;
 
-            //Calls.onLocalPlayerHealthChanged += PlayerHealthChange;
-            //Calls.onRemotePlayerHealthChanged += OpponentHealthChange;
+            Actions.onMatchStarted += MatchStarted;
+            Actions.onMatchEnded += MatchEnded;
+
+            Actions.onPlayerHealthChanged += PlayerHealthChange;
+        }
+
+        public void OnUIInit()
+        {
+            Mod.ModName = BuildInfo.ModName;
+            Mod.ModVersion = BuildInfo.ModVersion;
+            Mod.SetFolder(BuildInfo.ModName);
+            Mod.AddDescription("Description", "", BuildInfo.Description, new Tags { IsSummary = true });
+
+            incomingDamage = Mod.AddToList("Incoming", false, 1, "!!WARNING: This will clutter your timeline!!\n" +
+                "If true, this will set add a marker each time you take damage", new Tags());
+            outgoingDamage = Mod.AddToList("Outgoing", false, 1, "!!WARNING: This will clutter your timeline!!\n" +
+                "If true, this will set add a marker each time your opponent takes damage", new Tags());
+            Mod.SetLinkGroup(1, "Damage Markers");
+
+            Mod.GetFromFile();
+
+            UI.instance.AddMod(Mod);
+
+            LoggerInstance.Msg("Added Mod");
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             base.OnSceneWasLoaded(buildIndex, sceneName);
-            MelonLogger.Msg($"{Priority}");
             switch (sceneName)
             {
                 case "Gym":
+                    SteamTimeline.SetTimelineGameMode((ETimelineGameMode) Gamemode.Gym);
                     break;
                 case "Park":
+                    SteamTimeline.SetTimelineGameMode((ETimelineGameMode) Gamemode.Park);
                     break;
                 case "Map0":
                 case "Map1":
+                    SteamTimeline.SetTimelineGameMode((ETimelineGameMode) Gamemode.BetweenMatches);
                     break;
-            }
-            if (sceneName == "Gym")
-            {
-                SteamTimeline.SetTimelineGameMode(ETimelineGameMode.k_ETimelineGameMode_Menus);
-            }
-
-            if (sceneName == "Map0" || sceneName == "Map1")
-            {
-                SteamTimeline.SetTimelineGameMode(ETimelineGameMode.k_ETimelineGameMode_Staging);
-            }
-
-            if (sceneName == "Park")
-            {
-                SteamTimeline.SetTimelineGameMode(ETimelineGameMode.k_ETimelineGameMode_Staging);
             }
         }
 
-        //private void PlayerHealthChange()
-        //{
-        //    SteamTimeline.AddInstantaneousTimelineEvent(
-        //        $"{previousPlayerHealth - player.HealthPoints}",
-        //        $"Combat Event Count: {Il2CppRUMBLE.MoveSystem.CombatManager.Instance.runningCombatEvents.Count}",
-        //        "steam_defend",
-        //        0,
-        //        0f,
-        //        ETimelineEventClipPriority.k_ETimelineEventClipPriority_None);
-        //    previousPlayerHealth = player.HealthPoints;
-        //}
-
-        //private void OpponentHealthChange()
-        //{
-        //    SteamTimeline.AddInstantaneousTimelineEvent(
-        //        $"{previousOpponentHealth - opponent.HealthPoints}",
-        //        $"Combat Event Count: {Il2CppRUMBLE.MoveSystem.CombatManager.Instance.runningCombatEvents.Count}",
-        //        "steam_attack",
-        //        0,
-        //        0f,
-        //        ETimelineEventClipPriority.k_ETimelineEventClipPriority_None);
-        //    previousOpponentHealth = opponent.HealthPoints;
-        //}
+        private void PlayerHealthChange(Player damagedPlayer, int damage)
+        {
+            bool isDamageIncoming = damagedPlayer == player.Player;
+            if ((isDamageIncoming && (bool) incomingDamage.Value)
+                || (!isDamageIncoming && (bool) outgoingDamage.Value))
+            {
+                SteamTimeline.AddInstantaneousTimelineEvent(
+                    $"{damage}",
+                    "",
+                    isDamageIncoming ? "steam_defend" : "steam_attack",
+                    0,
+                    0f,
+                    ETimelineEventClipPriority.k_ETimelineEventClipPriority_None);         
+            }
+        }
 
         private void RoundStarted()
         {
@@ -102,10 +123,23 @@ namespace SteamTimelineIntegration
                 0f,
                 ETimelineEventClipPriority.k_ETimelineEventClipPriority_Standard);
         }
-        private void RoundEnded()
+
+        public void RoundEnded(int[] roundsWonList, int currentRound)
         {
-            int currentRound = Il2CppRUMBLE.Networking.MatchFlow.MatchHandler.Instance.CurrentRound + 1;
-            Il2CppStructArray<int> roundsWon = Il2CppRUMBLE.Networking.MatchFlow.MatchHandler.Instance.RoundsWonList;
+            WinsLosses score = Util.CalcWinsLosses(roundsWonList, currentRound);
+
+            if (!Calls.Players.IsHost() && player.HealthPoints > 0
+                || Calls.Players.IsHost() && player.HealthPoints <= 0)
+            {
+                clientRoundWins += 1;
+                if (!Calls.Players.IsHost())
+                {
+                    cumulativeClientWins += 1;
+                } else
+                {
+                    cumulativeHostLosses += 1;
+                }
+            }
 
             SteamTimeline.UpdateRangeTimelineEvent(
                 roundEvent,
@@ -122,28 +156,31 @@ namespace SteamTimelineIntegration
                 900,
                 0f,
                 ETimelineEventClipPriority.k_ETimelineEventClipPriority_None);
-            if (!Calls.Players.IsHost() && player.HealthPoints > 0
-                || Calls.Players.IsHost() && player.HealthPoints <= 0)
-            {
-                clientRoundWins += 1;
-            }
-            //SteamTimeline.SetGamePhaseAttribute("Round Score", roundsWon.ToArray().ToString(), 10);
+            SteamTimeline.SetGamePhaseAttribute("Round Score", $"{score.wins}/{score.losses}", 2);
         }
+
         private void MatchStarted()
         {
-            player = Calls.Players.GetLocalPlayer().Data;
-            //previousPlayerHealth = 20;
             opponent = Calls.Players.GetEnemyPlayers().First().Data;
-            //previousOpponentHealth = 20;
-            opponentName = opponent.GeneralData.PublicUsername ?? "Unknown Opponent";
-            opponentName = Regex.Replace(opponentName, "<.*?>|\\(.*?\\)|[^a-zA-Z0-9_ ]", "");
+            player = Calls.Players.GetLocalPlayer().Data;
+            opponentName = Util.GetPlayerName(opponent);
+
+            if (opponentName != previousOpponentName)
+            {
+                cumulativeClientWins = 0;
+                cumulativeHostLosses = 0;
+                cumulativeLosses = 0;
+                cumulativeWins = 0;
+            }
+            previousOpponentName = opponentName;
+            
 
             clientRoundWins = 0;
 
-            SteamTimeline.SetTimelineGameMode(ETimelineGameMode.k_ETimelineGameMode_Playing);
+            SteamTimeline.SetTimelineGameMode((ETimelineGameMode) Gamemode.Playing);
             SteamTimeline.StartGamePhase();
             SteamTimeline.SetGamePhaseID($"Match against {opponentName}");
-            //SteamTimeline.SetGamePhaseAttribute("Round Score", "?/?", 10);
+            SteamTimeline.SetGamePhaseAttribute("Round Score", "0/0", 10);
             SteamTimeline.SetGamePhaseAttribute("Opponent", opponentName, 9);
             if (Calls.Players.IsHost() == true)
             {
@@ -155,15 +192,18 @@ namespace SteamTimelineIntegration
         }
         private void MatchEnded()
         {
-            SteamTimeline.SetTimelineGameMode(ETimelineGameMode.k_ETimelineGameMode_Staging);
+            SteamTimeline.SetTimelineGameMode((ETimelineGameMode) Gamemode.BetweenMatches);
             if (player.MatchData.MatchPoints >= 2)
             {
                 SteamTimeline.AddGamePhaseTag("Win", "steam_crown", "Result", 10);
+                cumulativeWins += 1;
             }
             else
             {
                 SteamTimeline.AddGamePhaseTag("Loss", "steam_death", "Result", 10);
+                cumulativeLosses += 1;
             }
+            SteamTimeline.SetGamePhaseAttribute("Set Score", $"Set: {cumulativeWins}({cumulativeClientWins}) - {cumulativeLosses}({cumulativeHostLosses})", 10);
             SteamTimeline.SetGamePhaseAttribute("Client Round Wins", $"Client round wins: {clientRoundWins}", 5);
             SteamTimeline.EndGamePhase();
         }
