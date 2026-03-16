@@ -64,11 +64,10 @@ namespace SteamTimelineIntegration
             Mod.SetFolder(BuildInfo.ModName);
             Mod.AddDescription("Description", "", BuildInfo.Description, new Tags { IsSummary = true });
 
-            incomingDamage = Mod.AddToList("Incoming", false, 1, "!!WARNING: This will clutter your timeline!!\n" +
+            incomingDamage = Mod.AddToList("Incoming", false, 0, "!!WARNING: This will clutter your timeline!!\n" +
                 "If true, this will set add a marker each time you take damage", new Tags());
-            outgoingDamage = Mod.AddToList("Outgoing", false, 1, "!!WARNING: This will clutter your timeline!!\n" +
+            outgoingDamage = Mod.AddToList("Outgoing", false, 0, "!!WARNING: This will clutter your timeline!!\n" +
                 "If true, this will set add a marker each time your opponent takes damage", new Tags());
-            Mod.SetLinkGroup(1, "Damage Markers");
 
             Mod.GetFromFile();
 
@@ -197,11 +196,19 @@ namespace SteamTimelineIntegration
             {
                 SteamTimeline.AddGamePhaseTag("Win", "steam_crown", "Result", 10);
                 cumulativeWins += 1;
+                if (clientRoundWins == 2)
+                {
+                    cumulativeClientWins -= 2;
+                }
             }
             else
             {
                 SteamTimeline.AddGamePhaseTag("Loss", "steam_death", "Result", 10);
                 cumulativeLosses += 1;
+                if (clientRoundWins == 2)
+                {
+                    cumulativeHostLosses -= 2;
+                }
             }
             SteamTimeline.SetGamePhaseAttribute("Set Score", $"Set: {cumulativeWins}({cumulativeClientWins}) - {cumulativeLosses}({cumulativeHostLosses})", 10);
             SteamTimeline.SetGamePhaseAttribute("Client Round Wins", $"Client round wins: {clientRoundWins}", 5);

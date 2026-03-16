@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 [assembly: MelonInfo(typeof(SteamTimelineIntegration.Core), SteamTimelineIntegration.BuildInfo.ModName, SteamTimelineIntegration.BuildInfo.ModVersion, SteamTimelineIntegration.BuildInfo.Author)]
 [assembly: VerifyLoaderVersion(0,7,2)]
 [assembly: MelonGame("Buckethead Entertainment", "RUMBLE")]
+[assembly: MelonColor(255, 253, 188, 180)]
+[assembly: MelonAuthorColor(255, 253, 188, 180)]
 
 [assembly: AssemblyTitle(SteamTimelineIntegration.BuildInfo.ModName)]
 [assembly: AssemblyDescription(SteamTimelineIntegration.BuildInfo.Description)]
