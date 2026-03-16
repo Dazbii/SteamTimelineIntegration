@@ -1,0 +1,10 @@
+{
+    "name": "SteamTilelineIntegration",
+    "version_number": "1.0.0",
+    "website_url": "https://github.com/Dazbii/SteamTimelineIntegration",
+    "description": "SteamTimelineIntegration is a mod for RUMBLE that automatically adds annotations to Steam's built-in recording feature.",
+    "dependencies": [
+        "LavaGang-MelonLoader-0.7.2",
+        "UlvakSkillz-RumbleModdingAPI-5.1.1"
+    ]
+}
