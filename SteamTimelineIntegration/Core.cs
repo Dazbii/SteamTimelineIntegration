@@ -9,7 +9,7 @@ namespace SteamTimelineIntegration
     public static class BuildInfo
     {
         public const string ModName = "SteamTimelineIntegration";
-        public const string ModVersion = "1.0.0";
+        public const string ModVersion = "1.0.1";
         public const string Description = "Rumble mod to enable integrations with the steam timeline ";
         public const string Author = "Dazbii";
         public const string Company = "";
@@ -149,7 +149,7 @@ namespace SteamTimelineIntegration
                 ETimelineEventClipPriority.k_ETimelineEventClipPriority_Standard);
             SteamTimeline.EndRangeTimelineEvent(roundEvent, 0);
             SteamTimeline.AddInstantaneousTimelineEvent(
-                $"Round {currentRound} Win",
+                $"Round {currentRound} {(player.HealthPoints > 0 ? "Win" : "Loss")}",
                 $"Versus {opponentName}",
                 player.HealthPoints > 0 ? "steam_crown" : "steam_death",
                 900,

@@ -10,10 +10,13 @@ From here you can easily click a game and be brought straight to it on the timel
 Optionally, you can also enable markers to show each and every instance of damage on the timeline, so you can see exactly where the action happened!
 Though be warned, this will make the timeline very cluttered
 
+
+[Here is a video showcase of the mod, as well as a video tutorial for the following section](https://youtu.be/tPqlh-VCxx0)
+
 ## Steam Recording Setup
 
 Even if you have Steam's game recording enabled, it probably isn't recording your rumble.
-Here's the full setup to get that working:
+Here's the full setup to get that working. Also see second section of the video linked above for a video walkthrough of the following steps:
 
 
 1. In Steam, click on Steam in the very upper lefthand corner of the window
